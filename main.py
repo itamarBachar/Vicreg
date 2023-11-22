@@ -23,7 +23,7 @@ def main():
     # visualize(train_dataset)
 
     # train the model
-    train(train_dataset, 50)
+    train(train_dataset)
 
 
 def default_args():
@@ -33,11 +33,12 @@ def default_args():
     args["sim_coeff"] = 25.0
     args["std_coeff"] = 25.0
     args["cov_coeff"] = 1.0
-    args["batch_size"] = 128
+    args["batch_size"] = 2
     args["wd"] = 1e-6
-    args["lr"] = 0.2
     args["base_lr"] = 0.2
     args["epochs"] = 100
+    # args["lr"] = args["base_lr"] * args["batch_size"] / 256
+    args["lr"] = 1.6
     return args
 
 
@@ -55,15 +56,14 @@ def train(training_dataset):
     train_loader = DataLoader(training_dataset, batch_size=args["batch_size"], shuffle=True)
     # Create a learning rate scheduler
     scheduler = lr_scheduler.CosineAnnealingWarmRestarts(
-        lars,  # Optimizer
-        T_0=10,  # Number of iterations until the first restart
-        T_mult=2,  # Factor by which T_0 is multiplied after each restart
-        eta_min=0.001  # Minimum learning rate
+        lars,
+        T_0=100,  # Number of iterations until the first restart (10 warmup epochs with batch size 2048)
+        T_mult=1,  # Factor by which T_0 is multiplied after each restart (no change)
+        eta_min=0.002  # Minimum learning rate
     )
     # train the model
     for epoch in range(args['epochs']):
         for i, batch in enumerate(train_loader):
-            scheduler.step(epoch + i / len(train_loader))
             # zero the parameter gradients
             lars.zero_grad()
             # forward + backward + optimize
@@ -74,23 +74,8 @@ def train(training_dataset):
             scaler.update()
             # print statistics
             print(f'epoch: {epoch}, batch: {i}, loss: {loss.item()}')
-
-
-def adjust_learning_rate(args, optimizer, loader, step):
-    max_steps = args['epochs'] * len(loader)
-    warmup_steps = 10 * len(loader)
-    base_lr = args['base_lr'] * args['batch_size'] / 256
-    if step < warmup_steps:
-        lr = base_lr * step / warmup_steps
-    else:
-        step -= warmup_steps
-        max_steps -= warmup_steps
-        q = 0.5 * (1 + math.cos(math.pi * step / max_steps))
-        end_lr = base_lr * 0.001
-        lr = base_lr * q + end_lr * (1 - q)
-    for param_group in optimizer.param_groups:
-        param_group["lr"] = lr
-    return lr
+            # update the learning rate
+            scheduler.step()
 
 
 if __name__ == '__main__':

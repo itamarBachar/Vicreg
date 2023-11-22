@@ -8,37 +8,22 @@ from resnet import ResNet50
 class Projector(nn.Module):
     def __init__(self):
         super(Projector, self).__init__()
-        # Define individual layers
         self.linear1 = nn.Linear(2048, 8192)
-        self.relu1 = nn.ReLU(inplace=True)
         self.linear2 = nn.Linear(8192, 8192)
-        self.relu2 = nn.ReLU(inplace=True)
-        self.linear3 = nn.Linear(8192, 8192, bias=False)
+        self.linear3 = nn.Linear(8192, 8192)
+        self.batch_norm1 = nn.BatchNorm1d(8192)
+        self.batch_norm2 = nn.BatchNorm1d(8192)
+        self.relu = nn.ReLU(inplace=True)
 
     def forward(self, x):
-        # Apply each layer in sequence
         x = x.view(x.size(0), -1)
         x = self.linear1(x)
-        x = x.view(x.size(0), -1)
-
-        # Manually calculate mean and standard deviation along the feature dimension
-        mean = torch.mean(x, dim=1, keepdim=True)
-        std = torch.std(x, dim=1, keepdim=True)
-
-        # Apply instance normalization
-        x = (x - mean) / (std + 1e-5)  # Adding a small epsilon for numerical stability
-        x = self.relu1(x)
+        x = self.batch_norm1(x)
+        x = self.relu(x)
         x = self.linear2(x)
-
-        # Manually calculate mean and standard deviation again
-        mean = torch.mean(x, dim=1, keepdim=True)
-        std = torch.std(x, dim=1, keepdim=True)
-
-        # Apply instance normalization again
-        x = (x - mean) / (std + 1e-5)
-        x = self.relu2(x)
+        x = self.batch_norm2(x)
+        x = self.relu(x)
         x = self.linear3(x)
-
         return x
 
 
@@ -54,11 +39,6 @@ class VICReg(nn.Module):
     def forward(self, x):
         # Apply batch normalization to the input only in the first forward pass
         x1, x2 = x[0]
-        # if not hasattr(self, 'input_normalized'):
-        #     x1 = self.first_batch_norm(x1)
-        #     x2 = self.first_batch_norm(x2)
-        #     self.input_normalized = True
-
         x1 = self.projector(self.backbone(x1))
         x2 = self.projector(self.backbone(x2))
 
