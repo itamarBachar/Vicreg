@@ -50,7 +50,6 @@ class VICReg(nn.Module):
         self.embedding = 2048
         self.backbone = ResNet50()
         self.projector = Projector()
-        self.first_batch_norm = nn.BatchNorm1d(224)
 
     def forward(self, x):
         # Apply batch normalization to the input only in the first forward pass
@@ -66,14 +65,14 @@ class VICReg(nn.Module):
         repr_loss = F.mse_loss(x1, x2)
         # x = torch.cat(FullGatherLayer.apply(x), dim=0)
         # y = torch.cat(FullGatherLayer.apply(y), dim=0)
-        x1_mean = x1.mean(dim=1, keepdim=True)
-        x2_mean = x2.mean(dim=1, keepdim=True)
+        x1_mean = x1.mean(dim=0, keepdim=True)
+        x2_mean = x2.mean(dim=0, keepdim=True)
         x1 = x1 - x1_mean
         x2 = x2 - x2_mean
 
         # Calculate the standard deviation for each input tensor along dim=0
-        std_x1 = torch.sqrt(x1.var(dim=1) + 0.0001)
-        std_x2 = torch.sqrt(x2.var(dim=1) + 0.0001)
+        std_x1 = torch.sqrt(x1.var(dim=0) + 0.0001)
+        std_x2 = torch.sqrt(x2.var(dim=0) + 0.0001)
 
         # Calculate the loss based on the standard deviations
         std_loss = (torch.mean(F.relu(1 - std_x1)) + torch.mean(F.relu(1 - std_x2))) / 2

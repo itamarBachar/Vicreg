@@ -33,7 +33,7 @@ def default_args():
     args["sim_coeff"] = 25.0
     args["std_coeff"] = 25.0
     args["cov_coeff"] = 1.0
-    args["batch_size"] = 100
+    args["batch_size"] = 128
     args["wd"] = 1e-6
     args["lr"] = 0.2
     args["base_lr"] = 0.2
@@ -41,7 +41,7 @@ def default_args():
     return args
 
 
-def train(training_dataset, batch_size):
+def train(training_dataset):
     # create the model default args.
     args = default_args()
     model = VICReg(args)
